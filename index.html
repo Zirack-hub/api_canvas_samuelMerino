@@ -2,238 +2,35 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>Mapa interactivo - Leaflet + Canvas interactivo</title>
-
-    <!-- Leaflet CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapa (Api) de Ubicaciones Samuel Merino</title>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-
-    <style>
-      /* ---------- BODY ---------- */
-      body {
-        font-family: "Roboto", Arial, sans-serif;
-        margin: 20px;
-        background: linear-gradient(135deg, #ffe6f0, #e0f7fa);
-        color: #333;
-      }
-
-      /* ---------- TITULOS ---------- */
-      h2,
-      h3 {
-        color: #d81b60;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-        margin-bottom: 15px;
-      }
-
-      /* ---------- COORDENADAS ---------- */
-      .coords {
-        background: #ffffffdd;
-        border-radius: 12px;
-        padding: 12px 20px;
-        display: flex;
-        gap: 20px;
-        align-items: center;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-
-      .coords label {
-        font-weight: 600;
-        color: #d81b60;
-      }
-
-      .coords input {
-        width: 150px;
-        padding: 6px 10px;
-        border-radius: 8px;
-        border: 1px solid #f48fb1;
-        background-color: #fff0f6;
-        color: #006064;
-        font-weight: bold;
-        font-size: 14px;
-      }
-
-      /* ---------- MAPA ---------- */
-      #map {
-        height: 450px;
-        border-radius: 18px;
-        border: 3px solid #4dd0e1;
-        box-shadow: 0 8px 20px rgba(77, 208, 225, 0.4);
-        margin-bottom: 25px;
-      }
-
-      /* ---------- CANVAS ---------- */
-      canvas {
-        width: 100%;
-        max-width: 800px;
-        height: 300px;
-        border-radius: 18px;
-        border: 3px solid #d81b60;
-        background: linear-gradient(120deg, #fce4ec, #e0f7fa);
-        box-shadow: 0 6px 16px rgba(216, 27, 96, 0.25);
-        display: block;
-        margin: 0 auto 30px;
-      }
-
-      /* ---------- RESPONSIVE ---------- */
-      @media (max-width: 768px) {
-        .coords {
-          flex-direction: column;
-          gap: 10px;
-        }
-        canvas {
-          height: 250px;
-        }
-        #map {
-          height: 300px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="style.css" />
   </head>
-
   <body>
-    <h2>Mapa interactivo</h2>
+    <div class="grid-container">
+      <header class="area-title">
+        <h1>Geolocalización Canvas</h1>
+      </header>
 
-    <div class="coords">
-      <label>Latitud: <input type="text" id="lat" readonly /></label>
-      <label>Longitud: <input type="text" id="lng" readonly /></label>
+      <div class="area-coords">
+        <label>Lat: <input type="text" id="lat" readonly /></label>
+        <label>Lng: <input type="text" id="lng" readonly /></label>
+      </div>
+
+      <div class="area-canvas">
+        <h3>Historial Visual</h3>
+        <canvas id="miCanvas" width="400" height="400"></canvas>
+        <p class="nota">Haz clic en la "X" roja para borrar</p>
+      </div>
+
+      <div id="map" class="area-map"></div>
     </div>
 
-    <div id="map"></div>
-
-    <h3>Canvas de ubicaciones</h3>
-    <canvas id="canvas" width="800" height="300"></canvas>
-
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <script>
-      /*
-Nombre del alumno: Samuel Merino Prado
-*/
-      document.addEventListener("DOMContentLoaded", function () {
-        // ---------- MAPA ----------
-        const map = L.map("map").setView([40.4168, -3.7038], 6);
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "© OpenStreetMap",
-        }).addTo(map);
-
-        // ---------- INPUTS ----------
-        const latInput = document.getElementById("lat");
-        const lngInput = document.getElementById("lng");
-
-        // ---------- CANVAS ----------
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
-
-        // ---------- LOCALSTORAGE ----------
-        let locations = JSON.parse(localStorage.getItem("locations")) || [];
-        let leafletMarkers = [];
-
-        // Crear marcadores existentes
-        locations.forEach((loc) => {
-          const marker = L.marker([loc.lat, loc.lng]).addTo(map);
-          leafletMarkers.push(marker);
-        });
-
-        // ---------- EVENTOS MAPA ----------
-        map.on("mousemove", (e) => {
-          latInput.value = e.latlng.lat.toFixed(5);
-          lngInput.value = e.latlng.lng.toFixed(5);
-        });
-
-        map.on("click", (e) => {
-          const point = { lat: e.latlng.lat, lng: e.latlng.lng };
-          locations.push(point);
-          localStorage.setItem("locations", JSON.stringify(locations));
-
-          const marker = L.marker([point.lat, point.lng]).addTo(map);
-          leafletMarkers.push(marker);
-
-          drawCanvas();
-        });
-
-        // ---------- CANVAS ----------
-        let canvasPoints = [];
-
-        function drawCanvas() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          canvasPoints = [];
-
-          if (locations.length === 0) return;
-
-          const paddingTop = 50;
-          const paddingBottom = 50;
-          const availableHeight = canvas.height - paddingTop - paddingBottom;
-
-          ctx.fillStyle = "#006064";
-          ctx.font = "14px Roboto";
-          ctx.textAlign = "center";
-
-          const maxPerRow = 5;
-          const rows = Math.ceil(locations.length / maxPerRow);
-          const stepX = canvas.width / (maxPerRow + 1);
-          const stepY = availableHeight / (rows + 1);
-
-          locations.forEach((p, i) => {
-            const col = i % maxPerRow;
-            const row = Math.floor(i / maxPerRow);
-
-            const x = stepX * (col + 1);
-            const yCenter = paddingTop + stepY * (row + 0.5);
-
-            // dibujar marcador
-            ctx.beginPath();
-            ctx.arc(x, yCenter, 6, 0, Math.PI * 2);
-            ctx.fill();
-
-            // número arriba
-            ctx.fillText(i + 1, x, yCenter - 15);
-
-            // coordenadas debajo
-            const coordText = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-            ctx.fillText(coordText, x, yCenter + 20);
-
-            // Guardar para detectar clic derecho
-            canvasPoints[i] = { x, y: yCenter, radius: 6 };
-          });
-        }
-
-        // ---------- ELIMINAR CON CLIC DERECHO ----------
-        canvas.addEventListener("contextmenu", function (e) {
-          e.preventDefault();
-          const rect = canvas.getBoundingClientRect();
-          const mouseX = e.clientX - rect.left;
-          const mouseY = e.clientY - rect.top;
-
-          for (let i = 0; i < canvasPoints.length; i++) {
-            const pt = canvasPoints[i];
-            const dx = mouseX - pt.x;
-            const dy = mouseY - pt.y;
-            if (Math.sqrt(dx * dx + dy * dy) <= pt.radius + 5) {
-              // eliminar del array
-              locations.splice(i, 1);
-
-              // eliminar marcador de Leaflet
-              map.removeLayer(leafletMarkers[i]);
-              leafletMarkers.splice(i, 1);
-
-              // guardar cambios
-              localStorage.setItem("locations", JSON.stringify(locations));
-
-              // redibujar canvas
-              drawCanvas();
-              break;
-            }
-          }
-        });
-
-        // Dibujo inicial
-        drawCanvas();
-      });
-    </script>
+    <script src="script.js"></script>
   </body>
 </html>
